@@ -81,7 +81,7 @@ class BranchAndCut:
         for ind_set in ind_sets:
             len_ind_sets+=len(ind_set)
             self.constraints.append([ind_set, [1.0] * len(ind_set)])
-        print(len_ind_sets)
+        # print(len_ind_sets)
         c.linear_constraints.add(lin_expr=self.constraints,
                                  senses=['L'] * len(self.constraints),
                                  rhs=[1] * len(self.constraints),
@@ -102,12 +102,23 @@ class BranchAndCut:
 
     def check_clique(self, values):
         values = sorted(values)
-        missed_edges = list()
+        # missed_edges = list()
         for v1 in values:
             for v2 in values[values.index(v1) + 1:]:
                 if self.graph[v1, v2] == 0:
-                    return tuple([v1, v2])
+                    return [v1, v2]
         return True
+    
+    def extend_set(self, graph, tmp_set):
+        for ind in range(graph.shape[0]):
+            adj = False
+            for elem in tmp_set:
+                if graph[ind][elem] == 1 or ind == elem:
+                    adj = True
+                    break
+            if not adj:
+                tmp_set.add(ind)
+        return tmp_set
 
     def add_constraint(self, problem, bvars, rhs, type_eq):
         if len(bvars) == 1:
@@ -118,7 +129,7 @@ class BranchAndCut:
             problem.linear_constraints.add(lin_expr=[[['x{0}'.format(x) for x in bvars], [1.0] * len(bvars)]],
                                            senses=['L'],
                                            rhs=[1.0],
-                                           names=['constr{0}'.format(len(self.constraints))])
+                                           names=['c{0}'.format(len(self.constraints))])
 
         return problem
 
@@ -144,10 +155,25 @@ class BranchAndCut:
                         return possible_clique
                     return list()
                 else:
-                    return self.branching(self.add_constraint(cplex.Cplex(problem), list(check_result), 1.0, 'L'))
-            return max(self.branching(self.add_constraint(cplex.Cplex(problem), [branching_variable], 1.0, 'E')),
-                       self.branching(self.add_constraint(cplex.Cplex(problem), [branching_variable], 0.0, 'E')),
-                       key=lambda list: len(list))
+                    return self.branching(self.add_constraint(#cplex.Cplex(problem),
+                                                              problem,
+                                                              self.extend_set(self.graph, set(check_result))
+                                                              , 1.0, 'L'))
+
+            clique_l = self.branching(self.add_constraint(#cplex.Cplex(problem),
+                                                          problem,
+                                                          [branching_variable], 1.0, 'E'))
+
+            problem.linear_constraints.delete('bvar_{0}_{1}'.format([branching_variable], 1.0))
+
+            clique_r = self.branching(self.add_constraint(#cplex.Cplex(problem),
+                                                          problem,
+                                                          [branching_variable], 0.0, 'E'))
+            problem.linear_constraints.delete('bvar_{0}_{1}'.format([branching_variable], 0.0))
+
+            return max(clique_l, clique_r, key=lambda list: len(list))
+
+
         return list()
 
     def findMaxClique(self):
@@ -178,12 +204,14 @@ if __name__ == "__main__":
         timeout = int(sys.argv[2])
         file = sys.argv[1]
     else:
-        file = "C:\\Users\\Daniil\\Desktop\\graphs\\hamming6-4.clq.txt"
-        # file = "C:\\Users\\shimk\\OneDrive\\Documents\\MAXCLIQUE_3\\clq\\hamming6-4.clq.txt"
+        file = "johnson8-2-4.clq.txt"
+        # file = "hamming6-4.clq.txt"
+        # file = "c-fat200-5.clq.txt"
+        # file = "MANN_a27.clq.txt"
         timeout = 3000
     end_time = time.time() + timeout
 
     graph, degrees = readGraphFromFile(file)
     max_clique = BranchAndCut(graph, degrees).findMaxClique()
 
-    print(str(timeout - (end_time - time.time())) + " " + str(len(max_clique)), max_clique)
+    print(str(timeout - (end_time - time.time())), 'len', len(max_clique), 'clique', max_clique)
