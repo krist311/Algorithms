@@ -3,9 +3,12 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 train_data = pd.read_csv('train1.csv', sep=",", names=["id", "text", "is_positive"], skiprows=[0], nrows=100, dtype={"is_positive": 'int'})
+tdata = pd.read_csv('test1.csv', sep=",", names=["id", "text"], skiprows=[0], nrows=100, dtype={"is_positive": 'int'})
 print(train_data.head())
+print(tdata.head())
 
 data = pd.DataFrame(columns=['is_positive'])
+test_data = pd.DataFrame()
 
 
 def process_review(review, is_positive, df):
@@ -18,8 +21,8 @@ def process_review(review, is_positive, df):
     return df
 
 
-def process_reviews(df):
-    for index, row in train_data.iterrows():
+def process_reviews(df, data_to_parse):
+    for index, row in data_to_parse.iterrows():
         df = process_review(row["text"], row["is_positive"], df)
     for column in df.columns:
         if sum(df[column]) < 10:
@@ -27,7 +30,8 @@ def process_reviews(df):
     return df
 
 
-data = process_reviews(data)
+data = process_reviews(data,train_data)
+test_data = process_reviews(test_data,tdata)
 
 print(data)
 
@@ -46,4 +50,10 @@ lda_model.fit(x_train, y_train)
 err_train = np.mean(y_train != lda_model.predict(x_train))
 err_test = np.mean(y_test != lda_model.predict(x_test))
 print(err_train, err_test)
+
+
+
+
+
+
 
